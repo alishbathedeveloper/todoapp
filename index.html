@@ -1,0 +1,145 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>To-Do List</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      margin: 20px;
+    }
+    #task-list {
+      margin-top: 20px;
+    }
+    .task {
+      display: flex;
+      justify-content: space-between;
+      padding: 10px;
+      border: 1px solid #ccc;
+      margin-bottom: 5px;
+    }
+    .completed {
+      text-decoration: line-through;
+      color: gray;
+    }
+    .filters {
+      margin-top: 10px;
+    }
+    .filters button {
+      margin-right: 5px;
+    }
+  </style>
+</head>
+<body>
+  <h1>To-Do List</h1>
+  <input type="text" id="task-input" placeholder="Add a new task">
+  <button onclick="addTask()">Add Task</button>
+  <div class="filters">
+    <button onclick="filterTasks('all')">All</button>
+    <button onclick="filterTasks('completed')">Completed</button>
+    <button onclick="filterTasks('incomplete')">Incomplete</button>
+    <button onclick="clearAllTasks()">Clear All</button>
+  </div>
+  <div id="task-list"></div>
+
+  <script>
+    let currentFilter = 'all'; // Track the current filter
+
+    // Function to fetch and display tasks
+    async function fetchTasks() {
+      const response = await fetch('http://localhost:5000/tasks'); // Ask the server for tasks
+      const tasks = await response.json(); // Convert the response to JSON
+      const taskList = document.getElementById('task-list');
+      taskList.innerHTML = ''; // Clear the task list
+
+      // Filter tasks based on the current filter
+      const filteredTasks = tasks.filter((task) => {
+        if (currentFilter === 'completed') return task.completed;
+        if (currentFilter === 'incomplete') return !task.completed;
+        return true; // Show all tasks
+      });
+
+      // Display the filtered tasks
+      filteredTasks.forEach((task) => {
+        const taskElement = document.createElement('div');
+        taskElement.className = `task ${task.completed ? 'completed' : ''}`;
+        taskElement.innerHTML = `
+          <span>${task.task}</span>
+          <div>
+            <button onclick="editTask(${task.id})">Edit</button>
+            <button onclick="completeTask(${task.id})">Complete</button>
+            <button onclick="deleteTask(${task.id})">Delete</button>
+          </div>
+        `;
+        taskList.appendChild(taskElement); // Add the task to the webpage
+      });
+    }
+
+    // Function to add a new task
+    async function addTask() {
+      const taskInput = document.getElementById('task-input');
+      const task = taskInput.value; // Get the task from the input field
+      if (task) {
+        await fetch('http://localhost:5000/tasks', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ task }), // Send the task to the server
+        });
+        taskInput.value = ''; // Clear the input field
+        fetchTasks(); // Refresh the task list
+      }
+    }
+
+    // Function to mark a task as completed
+    async function completeTask(id) {
+      await fetch(`http://localhost:5000/tasks/${id}`, { method: 'PUT' });
+      fetchTasks(); // Refresh the task list
+    }
+
+    // Function to delete a task
+    async function deleteTask(id) {
+      await fetch(`http://localhost:5000/tasks/${id}`, { method: 'DELETE' });
+      fetchTasks(); // Refresh the task list
+    }
+
+    // Function to edit a task
+    async function editTask(id) {
+      const updatedTask = prompt('Edit your task:'); // Ask the user for the updated task
+      if (updatedTask) {
+        await fetch(`http://localhost:5000/tasks/${id}`, {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ task: updatedTask }), // Send the updated task to the server
+        });
+        fetchTasks(); // Refresh the task list
+      }
+    }
+
+    // Function to filter tasks
+    function filterTasks(filter) {
+      currentFilter = filter; // Update the current filter
+      fetchTasks(); // Refresh the task list
+    }
+
+    // Function to clear all tasks
+    async function clearAllTasks() {
+      if (confirm('Are you sure you want to delete all tasks?')) {
+        await fetch('http://localhost:5000/tasks', { method: 'DELETE' });
+        fetchTasks(); // Refresh the task list
+      }
+    }
+
+    // Add event listener for the Enter key
+    const taskInput = document.getElementById('task-input');
+    taskInput.addEventListener('keydown', (event) => {
+      if (event.key === 'Enter') { // Check if the Enter key was pressed
+        addTask(); // Call the addTask function
+      }
+    });
+
+    // Load tasks when the page loads
+    fetchTasks();
+  </script>
+</body>
+</html>
